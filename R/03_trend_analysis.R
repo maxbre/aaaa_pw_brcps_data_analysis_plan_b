@@ -28,3 +28,32 @@ compute_municipal_mk_sen_long <- function(df, value_var = "pol_value", group_var
       )
     )
 }
+
+# function to prepare dataset for culative plot
+prep_exposure_data <- function(data, keys, ...) {
+  # Capture grouping variables (e.g., PROVINCIA, COMUNE)
+  group_vars <- enquos(...)
+  
+  data |> 
+    # Filter using the new unique identifier
+    filter(key %in% keys) |> 
+    
+    # Group by the key and any extra spatial variables
+    # We include pol_name and year here so they remain in the final df
+    group_by(key, pol_name, year, !!!group_vars, pol_value) |> 
+    summarise(P1 = sum(P1, na.rm = TRUE), .groups = "drop_last") |> 
+    
+    # Sort by the pollution value for the cumulative sum
+    arrange(pol_value, .by_group = TRUE) |> 
+    
+    # Calculate Cumulative Percentages
+    mutate(
+      cum_pop = cumsum(P1),
+      #pct_cum_pop = cum_pop / sum(P1, na.rm = TRUE)
+      pct_cum_pop = cum_pop / max(cum_pop, na.rm = TRUE) # Bulletproof denominator
+    ) |> 
+    ungroup() |> 
+    # Ensure year is a factor for plotting aesthetics
+    mutate(year = factor(year))
+}
+
