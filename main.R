@@ -57,7 +57,10 @@ camx_plots[[1]]
 
 # modify the north arrow and scale then plot
 # display all plots together in a grid
-patchwork::wrap_plots(camx_plots, ncol=3, guides = "collect")
+patchwork::wrap_plots(camx_plots, ncol=3, guides = "collect")+
+  plot_spacer() +
+  guide_area() +
+  plot_layout(ncol = 3, guides = "collect")
 
 # 5. Pipeline Trend Analysis (Mann-Kendall) ------------------------------------
 
@@ -98,6 +101,70 @@ sez_no2 |>
   )
 
 ggsave_report("./output/boxplot_no2_provincia.png", plot = p_mk)
+
+# cumulative plot
+
+# define mapping (Raw key -> Clean label)
+scenario_no2 <- c(
+  "camx_2019_no2" = "2019",
+  "camx_2025_no2"  = "2025"
+  )
+
+# prepare dataset by region
+df_plot_no2 <- sez_no2 |> 
+  prep_exposure_data(keys = names(scenario_no2)) |> # <--- look at this
+  mutate(
+    key = factor(
+      key, 
+      levels = names(scenario_no2), # Keeps the order
+      labels = unname(scenario_no2) # Applies clean display labels
+    )
+  )
+
+ggplot(df_plot_no2, aes(x = pol_value, y = pct_cum_pop, colour = key)) +
+  geom_step(linewidth = 0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = expression(paste("NO"[2], " [", mu, "g/m"^3, "]")),
+    y = "popolazione cumulativa esposta",
+    colour = "anno" )+
+  geom_vline(xintercept = 10, colour = "grey50", linetype = "dashed")+
+  annotate("text", x=8.5, y = 0.93, label = "OMS", colour="grey50", size=4)
+  
+ggsave("./output/no2_exp_pop_2019_2025.png", bg="white")
+
+# prepare dataset by provincia
+df_plot_no2_prov <- sez_no2 |> 
+  prep_exposure_data(keys = names(scenario_no2), PROVINCIA) |> # <--- look at this
+  mutate(
+    key = factor(
+      key, 
+      levels = names(scenario_no2), # Keeps the order
+      labels = unname(scenario_no2) # Applies clean display labels
+    )
+  )
+
+ggplot(df_plot_no2_prov, aes(x = pol_value, y = pct_cum_pop, colour = key)) +
+  geom_step(linewidth = 0.5) +
+  facet_wrap(vars(PROVINCIA), ncol=2) +
+  #scale_y_continuous(labels = scales::percent) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = expression(paste("NO"[2], " [", mu, "g/m"^3, "]")),
+    y = "popolazione cumulativa esposta",
+    colour = "scenario" 
+  ) +
+  scale_y_continuous(breaks = breaks_extended(5), labels = scales::percent) +
+  scale_x_continuous(breaks= breaks_extended(5))+
+  geom_vline(xintercept = 10, colour = "grey50", linetype = "dashed")+
+  annotate("text", x=8.5, y = 0.75, label = "OMS", colour="grey50", size=3, angle = 90)+
+  theme_minimal(base_size = 12)+
+  theme(legend.position = "inside",
+        legend.position.inside = c(0.6,0),
+        legend.justification = c(0, 0))
+
+ggsave("./output/no2_exp_pop_2019_2025_by_province.png", bg="white")
 
 # # =========================================================
 
