@@ -28,14 +28,14 @@ sum_demo
 p_map_pop <- plot_sezione_map(
   sez_analyzed = demo_sez_21,
   fill_var     = "pop_30p",
-  title        = "Popolazione 30+ per Sezione ISTAT",
-  legend_title = "Abitanti",
+  title        = NULL, #"Popolazione 30+ per sezione censuaria ISTAT",
+  legend_title = "Abitanti\n(scala log)",
   use_log      = TRUE
 )
 
 # note the log scale
 p_map_pop
-# ggsave_report("./output/map_sez_pop30p.png", plot = p_map_pop)
+ggsave_report("./output/map_sez_pop30p.png", plot = p_map_pop)
 
 # 4. Pipeline Raster CAMx ------------------------------------------------------
 
@@ -45,22 +45,23 @@ plot_and_save_layers(r_camx_crop,
                      output_dir = "./output/raster_maps", 
                      custom_titles = paste0(2019:2025))
 
-plot_and_save_layers(r_camx_crop, 
-                     output_dir = NULL, 
-                     custom_titles = paste0(2019:2025))
-
 # Store the returned list of plots
-camx_plots <- plot_and_save_layers(r_camx_crop, output_dir = NULL, custom_titles = paste0(2019:2025))
+camx_plots <- plot_and_save_layers(r_camx_crop,
+                                   output_dir = NULL, 
+                                   custom_titles = paste0(2019:2025))
 
 # Display the first plot (e.g., 2019)
 camx_plots[[1]]
 
 # modify the north arrow and scale then plot
 # display all plots together in a grid
-patchwork::wrap_plots(camx_plots, ncol=3, guides = "collect")+
+no2_map_ts_rv <- patchwork::wrap_plots(camx_plots, ncol=3, guides = "collect")+
   plot_spacer() +
   guide_area() +
   plot_layout(ncol = 3, guides = "collect")
+
+ggsave_report("./output/map_no2_ts_rv.png", plot = no2_map_ts_rv)
+
 
 # 5. Pipeline Trend Analysis (Mann-Kendall) ------------------------------------
 
@@ -73,13 +74,13 @@ p_mk
 ggsave_report("./output/map_mk_sen_no2.png", plot = p_mk)
 
 # boxplot trend
-plot_annual_boxplots_df(
-  df          = sez_no2,
-  value_var   = "pol_value",
-  year_var    = "year",
-  title       = "Distribuzione annuale NO2",
-  output_path = NULL #"./output/boxplot_annuale_no2.png"
-  )
+# plot_annual_boxplots_df(
+#   df          = sez_no2,
+#   value_var   = "pol_value",
+#   year_var    = "year",
+#   title       = "Distribuzione annuale NO2",
+#   output_path = NULL #"./output/boxplot_annuale_no2.png"
+#   )
 
 # boxplot trend improved version
 sez_no2 |> 
@@ -100,7 +101,7 @@ sez_no2 |>
     legend.key.width = unit(1.5, "cm")
   )
 
-ggsave_report("./output/boxplot_no2_provincia.png", plot = p_mk)
+ggsave_report("./output/boxplot_no2_provincia.png")
 
 # cumulative plot
 
@@ -183,9 +184,34 @@ pwe_sez_wide <- sez_no2 |>
 list_cause <- join_pwe_by_causa(df_sez = pwe_sez_wide, df_tassi = tassi_2024)
 
 ac_sez_no2 <- list_cause |> 
-  map(\(df) AC_string_pmin(df, col_pop30p = "p30p", col_tasso = "tasso", col_start = "no2_2025", col_end = "target_oms_no2"))
+  map(\(df) AC_string_pmin(df, col_pop30p = "p30p",
+                           col_tasso = "tasso", 
+                           col_start = "no2_2025", 
+                           col_end = "target_oms_no2"))
 
 write_rds(ac_sez_no2, './output/ac_sez_no2_2019_2025_wide_all_causes.rds')
+
+# ------------------------------------------------------------------------------
+# stat causa RESP, stima puntuale
+
+ac_sez_no2$RES |> 
+  mutate(cod_prov = substr(sprintf("%05.0f", COD_ISTAT), 3, 4)) |> 
+  group_by(provincia=prov_labels[cod_prov]) |> 
+  summarise(attesi = sum(attesi),
+            AC = sum(AC),
+            AF = AC/attesi,
+            AC_low = sum(AC_low),
+            AC_upp = sum(AC_upp)) |> 
+  write_csv('./output/tbl_ac_af_provincia_stima_puntuale.csv')
+
+ac_sez_no2$RES |> 
+  summarise(attesi = sum(attesi),
+            AC = sum(AC),
+            AF = AC/attesi,
+            AC_low = sum(AC_low),
+            AC_upp = sum(AC_upp))|> 
+  write_csv('./output/tbl_ac_af_regione_stima_puntuale.csv')
+
 
 #-------------------------------------------------------------------------------
 # mapping no2 and ac
@@ -217,17 +243,46 @@ ac_sez_no2_sf <- ac_sez_no2 |>
 # pay attention to this!
 ac_sez_no2_resp_sf <- ac_sez_no2_sf |> filter(causa=="RES")
 
-# plot
+# plot no2 2025 per sezione
 plot_sezione_map(
   sez_analyzed = ac_sez_no2_resp_sf,
   fill_var     = "no2_2025",                 # Nome colonna con valore da mappare
   palette      = "viridis",                   
-  title        = "Concentrazione media annuale NO2 per sezione (2025)",
+  title        = NULL, #"Concentrazione media annuale NO2 per sezione (2025)",
   legend_title = pollutant_label("NO2")
   )+
   geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
 
 ggsave_report("./output/map_sezioni_no2_2025.png")
+
+# map attesi
+
+ggplot(ac_sez_no2_resp_sf) +
+  geom_sf(aes(fill = attesi), color = NA) +
+  scale_fill_viridis_c(
+    option = "plasma",
+    begin = 0.1,
+    end = 0.9,
+    name = "attesi", 
+    na.value = "transparent") +
+  theme_void()+
+  geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
+
+ggsave_report("./output/map_sezioni_attesi.png")
+
+# map attesi
+ggplot(ac_sez_no2_resp_sf) +
+  geom_sf(aes(fill = AC), color = NA) +
+  scale_fill_viridis_c(
+    option = "magma",
+    begin = 0.2,
+    end = 0.8,
+    name = "AC", 
+    na.value = "transparent") +
+  theme_void()+
+  geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
+
+ggsave_report("./output/map_sezioni_AC.png")
 
 # calcolo dell'esposizione media pesata 2025
 # NOTA da impiegare solo ed esclusivamente a livello descrittivo medio 
@@ -237,27 +292,33 @@ ggsave_report("./output/map_sezioni_no2_2025.png")
 ac_sez_no2_resp_sf |>
   st_drop_geometry() |> 
   summarise(pwe_avg_rv = sum(no2_2025 * p30p, na.rm = TRUE) / sum(p30p, na.rm = TRUE)
-  )
+  ) |> 
+  write_csv('./output/tbl_pwe_regione_no2_2025.csv')
 
 # per le province della Regione Veneto
 ac_sez_no2_resp_sf |>
   st_drop_geometry() |>
   group_by(provincia) |>
   summarise(pwe_avg_rv = sum(no2_2025 * p30p, na.rm = TRUE) / sum(p30p, na.rm = TRUE) )|> 
-  ungroup()
+  ungroup()|> 
+  write_csv('./output/tbl_pwe_provincia_no2_2025.csv')
 
 # La popolazione over 30 del Veneto è esposta a una concentrazione media pesata (PWE) di $NO_2$ pari a $X\ \mu g/m^3$
 # Il livello medio provinciale di PWE varia  nell'intervallo da circa   (Belluno) circa (Padova, Venezia).
 
 # map AC not significant, not to be shown!?
 
-plot_sezione_map(
-  sez_analyzed = ac_sez_no2_resp_sf,
-  fill_var     = "AC",                 # Nome colonna con valore da mappare
-  palette      = "magma",                   
-  title        = "AC",
-  legend_title = "AC"
-  )
+# map AF -------------------------------------------------------------
+
+ggplot(ac_sez_no2_resp_sf) +
+  geom_sf(aes(fill = AF), color = NA) +
+  scale_fill_viridis_c(
+    option = "magma",
+    name = "AF", 
+    na.value = "transparent") +
+  theme_void()
+
+ggsave_report("./output/map_AF_sezioni_no2_2025.png")
 
 # aggregazione somme per comune
 # it takes a long time
@@ -270,31 +331,44 @@ comune_sf %>%
   arrange(desc(AC_tot)) %>%
   head(10)
 
-plot_sezione_map(
-  sez_analyzed = comune_sf,
-  fill_var     = "AC_tot",                 # Nome colonna con valore da mappare
-  palette      = "magma",                   
-  title        = "AC",
-  legend_title = "AC"
-)
 
 # fare grafico su questo oggetto
 comune_ac_sf <- shp_comuni |>
   mutate(cod_comune = as.character(PRO_COM)) |> 
   left_join(comune_sf |> st_drop_geometry(), by=join_by(cod_comune)) 
 
-# grafico da migliorare
+# AC per comune
 comune_ac_sf |> 
   ggplot()+
   geom_sf(aes(fill = AC_tot))+
   scale_fill_viridis_c()+
+  labs(fill="AC")+
   theme_void()
 
-comune_ac_sf |> 
-  ggplot()+
-  geom_sf(aes(fill = tasso_100k))+
-  scale_fill_viridis_c()+
-  theme_void()
+ggsave_report("./output/map_AC_comune_no2_2025.png")
+
+# tasso norm 100k
+# comune_ac_sf |> 
+#   ggplot()+
+#   geom_sf(aes(fill = tasso_100k))+
+#   scale_fill_viridis_c()+
+#   theme_void()
+
+# mappa geometrie sezioni
+
+# Semplificazione topologica (mantiene il 5% dei punti)
+geom_sez_simp <- rmapshaper::ms_simplify(geom_sez, keep = 0.05, keep_shapes = TRUE)
+
+# In alternativa con sf (più rapido, ma può creare micro-spazi tra poligoni):
+#geom_sez_simp <- sf::st_simplify(geom_sez, dTolerance = 20, preserveTopology = TRUE)
+
+# 2. Rendering con ggplot2
+ggplot(data = geom_sez_simp) +
+  geom_sf(fill = "transparent", color = "grey40", linewidth = 0.05) +
+  theme_void()+
+  geom_sf(data=shp_rv,  fill=NA, colour ="grey40")
+
+ggsave_report("./output/map_sezioni_censuarie_rv.png")
 
 # 7. Pipeline Bootstrap & Incertezza -------------------------------------------
 
@@ -319,15 +393,14 @@ boot_spat <- map(
   )
 )
 
-# qui nota ancora anni di esposizione dal 2019 al 2025, campionati casualmente
-boot_simp <- map(ac_sez_no2,
-                 \(x) run_bootstrap_ac_simple(x, col_exp = paste0("no2_", 2019:2025), B = 1000))
+write_rds(boot_spat, './output/list_boostrap_spatio_temp_all_causes.rds')
 
 # Estrazione dei percentili 95% CI (2.5%, 50%, 97.5%) per ogni causa
 sintesi_spatiotemporal <- boot_spat |>
   map(\(df_boot) {
     df_boot |>
       summarise(
+        
         AC_median = median(casi_attribuibili),
         AC_p2.5   = quantile(casi_attribuibili, 0.025),
         AC_p97.5  = quantile(casi_attribuibili, 0.975),
@@ -340,37 +413,63 @@ sintesi_spatiotemporal <- boot_spat |>
   list_rbind(names_to = "causa")
 
 # check resuts
-sintesi_spatiotemporal
+sintesi_spatiotemporal |> 
+  filter(causa =="RES") |> 
+  write_csv('./output/tab_stat_bootstrap_spatio_temp_cause_resp.csv')
 
 # plot bootstrap density
 plot_bootstrap_density(
   df_boot     = boot_spat$RES,
   var_name    = "casi_attribuibili",
   causa_label = "Mortalità per cause respiratorie",
-  output_path = NULL # "./output/ac_resp_bootstrap_density.png"
+  output_path = "./output/ac_resp_bootstrap_density_spat_temp.png"
 )
 
-comp_metrics <- compare_bootstrap_metrics(
-  Semplice = boot_simp$RES,
-  SpazioTemporale = boot_spat$RES,
-  var_name = "casi_attribuibili"
-)
+plot_bootstrap_density(
+  df_boot     = boot_spat$RES,
+  var_name    = "casi_attribuibili",
+  causa_label = NULL,
+  output_path = NULL)+
+  labs(title=NULL, 
+       subtitle = NULL,
+       x = "casi attribuibili",
+       caption = NULL
+       )
+ggsave_report("./output/ac_resp_bootstrap_density_spat_temp.pn_NO_LABS.png")
 
-comp_metrics
+# simple bootstrap -------------------------------------------------------------
 
-plot_bootstrap_comparison(
-  Semplice = boot_simp$RES,
-  SpazioTemporale = boot_spat$RES,
-  var_name = "casi_attribuibili"
-)
+# # qui nota ancora anni di esposizione dal 2019 al 2025, campionati casualmente
+# boot_simp <- map(ac_sez_no2,
+#                  \(x) run_bootstrap_ac_simple(x, col_exp = paste0("no2_", 2019:2025), B = 1000))
+# 
+# 
+# 
+# comp_metrics <- compare_bootstrap_metrics(
+#   Semplice = boot_simp$RES,
+#   SpazioTemporale = boot_spat$RES,
+#   var_name = "casi_attribuibili"
+# )
+# 
+# comp_metrics
+# 
+# plot_bootstrap_comparison(
+#   Semplice = boot_simp$RES,
+#   SpazioTemporale = boot_spat$RES,
+#   var_name = "casi_attribuibili"
+# )
+# 
+# ggsave_report("./output/bootstrap_comparison_res.png")
+#-------------------------------------------------------------------------------
 
-#ggsave_report("./output/bootstrap_comparison_res.png")
-
+# simple bootstrap
 # questa solo considerando anno 2025  cause respiratorie
 
 boot_simp_2025 <- map(ac_sez_no2, ~ run_bootstrap_ac_simple(.x,
                                           col_exp = "no2_2025",
                                           B = 1000))
+
+write_rds(boot_simp_2025, './output/list_boostrap_simple_2025_all_causes.rds')
 
 # confronto più significativo
 comp_metrics_2025 <- compare_bootstrap_metrics(
@@ -379,10 +478,13 @@ comp_metrics_2025 <- compare_bootstrap_metrics(
   var_name = "casi_attribuibili"
   )
 
-comp_metrics_2025
+comp_metrics_2025 |> 
+  write_csv('./output/tbl_bootstrap_compare_metrics_simple_vs_bootstrap.csv')
 
 plot_bootstrap_comparison(
   Semplice = boot_simp_2025$RES,
   SpazioTemporale = boot_spat$RES,
-  var_name = "casi_attribuibili"
-)
+  var_name = "casi_attribuibili")+
+  labs(title = NULL)
+
+ggsave_report("./output/bootstrap_comparison_res_simple_spattemp.png")

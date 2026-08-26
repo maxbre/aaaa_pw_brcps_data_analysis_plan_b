@@ -69,8 +69,7 @@ summarise_regional_demographics <- function(sez_analyzed) {
       mean_tract_dens_km2  = mean(dens_km2, na.rm = TRUE),
       mean_tract_dens_ha   = mean(dens_ha, na.rm = TRUE),
       median_tract_dens_km2= median(dens_km2, na.rm = TRUE),
-      median_tract_dens_ha = median(dens_ha, na.rm = TRUE),
-      pop_weighted_density = sum(dens_km2 * pop_tot, na.rm = TRUE) / tot_pop
+      median_tract_dens_ha = median(dens_ha, na.rm = TRUE)
     ) |> 
     tidyr::pivot_longer(cols = dplyr::everything(), names_to = "metric", values_to = "value")
 }

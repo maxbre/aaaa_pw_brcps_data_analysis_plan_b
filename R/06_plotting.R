@@ -71,15 +71,59 @@ plot_mk_sen_map <- function(shp, df_mk, join_by = "COMUNE", shp_region = NULL, t
   
   if (!is.null(shp_region)) p <- p + ggplot2::geom_sf(data = shp_region, fill = NA, color = "black", linewidth = 0.5)
   
-  p + ggplot2::scale_fill_gradient2(low = "#2b83ba", mid = "#e0f3f8", high = "#ffffbf", midpoint = -0.5, name = "Sen's slope") +
+  p + ggplot2::scale_fill_gradient2(low = "#2b83ba", 
+                                    mid = "#e0f3f8", 
+                                    high = "#ffffbf", 
+                                    midpoint = -0.5, 
+                                    name = bquote(atop("Sen's slope", "(" * mu * "g/m"^3 * "/anno)"))
+                                    ) +
     ggplot2::labs(title = title, subtitle = subtitle) +
     ggplot2::theme_void()+
     theme(legend.position = "bottom")
 }
 
-plot_bootstrap_comparison <- function(..., var_name = "casi_attribuibili", methods = NULL, title = "Confronto Bootstrap", output_path = NULL) {
+# ------------------------------------------------------------------------------
+# old senza mediane
+
+# plot_bootstrap_comparison <- function(..., 
+#                                       var_name = "casi_attribuibili", 
+#                                       methods = NULL, 
+#                                       title = "Confronto Bootstrap", 
+#                                       output_path = NULL) {
+#   results_list <- list(...)
+#   
+#   # gestione caso in cui viene passata una lista singola di elementi
+#   if (length(results_list) == 1 && is.list(results_list[[1]]) && !is.data.frame(results_list[[1]])) results_list <- results_list[[1]]
+#   if (is.null(methods)) methods <- names(results_list)
+#   
+#   df_plot <- purrr::map2(results_list, methods, \(item, m_name) {
+#     vals <- if (is.data.frame(item)) item[[var_name]] else item
+#     tibble::tibble(valore = vals, Metodo = m_name)
+#   }) |> dplyr::bind_rows()
+#   
+#   p <- ggplot2::ggplot(df_plot, ggplot2::aes(x = valore, fill = Metodo, color = Metodo)) +
+#     ggplot2::geom_density(alpha = 0.30) +
+#     ggplot2::theme_minimal() +
+#     ggplot2::labs(title = title, x = var_name, y = "Densità")
+#   
+#   if (!is.null(output_path)) ggplot2::ggsave(output_path, p, bg = "white")
+#   return(p)
+# }
+
+#-------------------------------------------------------------------------------
+# new con linee mediane
+
+plot_bootstrap_comparison <- function(..., 
+                                      var_name = "casi_attribuibili", 
+                                      methods = NULL, 
+                                      title = "Confronto Bootstrap", 
+                                      output_path = NULL) {
   results_list <- list(...)
-  if (length(results_list) == 1 && is.list(results_list[[1]]) && !is.data.frame(results_list[[1]])) results_list <- results_list[[1]]
+  
+  # gestione caso in cui viene passata una lista singola di elementi
+  if (length(results_list) == 1 && is.list(results_list[[1]]) && !is.data.frame(results_list[[1]])) {
+    results_list <- results_list[[1]]
+  }
   if (is.null(methods)) methods <- names(results_list)
   
   df_plot <- purrr::map2(results_list, methods, \(item, m_name) {
@@ -87,8 +131,20 @@ plot_bootstrap_comparison <- function(..., var_name = "casi_attribuibili", metho
     tibble::tibble(valore = vals, Metodo = m_name)
   }) |> dplyr::bind_rows()
   
+  # Calcolo della mediana per ciascun metodo
+  df_medians <- df_plot |> 
+    dplyr::group_by(Metodo) |> 
+    dplyr::summarise(mediana = stats::median(valore, na.rm = TRUE), .groups = "drop")
+  
   p <- ggplot2::ggplot(df_plot, ggplot2::aes(x = valore, fill = Metodo, color = Metodo)) +
     ggplot2::geom_density(alpha = 0.30) +
+    # Aggiunta delle linee verticali per le mediane
+    ggplot2::geom_vline(
+      data = df_medians, 
+      ggplot2::aes(xintercept = mediana, color = Metodo), 
+      linetype = "dashed", 
+      linewidth = 0.8
+    ) +
     ggplot2::theme_minimal() +
     ggplot2::labs(title = title, x = var_name, y = "Densità")
   
@@ -96,6 +152,7 @@ plot_bootstrap_comparison <- function(..., var_name = "casi_attribuibili", metho
   return(p)
 }
 
+#-------------------------------------------------------------------------------
 #' Plot della distribuzione di densità bootstrap (AC e PAF)
 plot_bootstrap_density <- function(df_boot, 
                                    var_name = "casi_attribuibili", 

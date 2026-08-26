@@ -35,6 +35,11 @@ get_province_labels <- function(link_table_path, short = FALSE) {
   }
 }
 
+fpath_province <- './data_input/tbl_link_prov.csv'
+prov_labels <- get_province_labels(fpath_province, short = FALSE)
+
+#-------------------------------------------------------------------------------
+
 ggsave_report <- function(filename, plot = ggplot2::last_plot(), width = 15, ratio = 1.618, height = width / ratio, units = "cm", dpi = 300, ...) {
   ggplot2::ggsave(filename = filename, plot = plot, width = width, height = height, units = units, dpi = dpi, ...)
 }
