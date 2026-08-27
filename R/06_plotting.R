@@ -195,7 +195,7 @@ plot_bootstrap_density <- function(df_boot,
         scales::percent(val, accuracy = 0.01, big.mark = " ", decimal.mark = ".")
       }
     } else {
-      scales::number(val, accuracy = 1, big.mark = " ", decimal.mark = ".")
+      scales::number(val, accuracy = 0.1, big.mark = " ", decimal.mark = ".")
     }
   }
   

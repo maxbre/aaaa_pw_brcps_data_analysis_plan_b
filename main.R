@@ -423,7 +423,7 @@ geom_sez_simp <- rmapshaper::ms_simplify(geom_sez, keep = 0.05, keep_shapes = TR
 # In alternativa con sf (più rapido, ma può creare micro-spazi tra poligoni):
 #geom_sez_simp <- sf::st_simplify(geom_sez, dTolerance = 20, preserveTopology = TRUE)
 
-# 2. Rendering con ggplot2
+# Rendering con ggplot2
 ggplot(data = geom_sez_simp) +
   geom_sf(fill = "transparent", color = "grey40", linewidth = 0.05) +
   theme_void()+
@@ -455,6 +455,7 @@ boot_spat <- map(
 )
 
 write_rds(boot_spat, './output/list_boostrap_spatio_temp_all_causes.rds')
+boot_spat <- read_rds('./output/list_boostrap_spatio_temp_all_causes.rds')
 
 # Estrazione dei percentili 95% CI (2.5%, 50%, 97.5%) per ogni causa
 sintesi_spatiotemporal <- boot_spat |>
