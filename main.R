@@ -20,10 +20,26 @@ sapply(r_files, source)
 
 # 3. Pipeline Demografica ------------------------------------------------------
 
+# metadata
+meta <- read_rds('./data_input/meta_21.rds')
+
 sez_pop_21 <- read_sf("./data_input/shp_sez_pop_21.gpkg")
 demo_sez_21 <- process_census_demographics(sez_pop_21)
 sum_demo    <- summarise_regional_demographics(demo_sez_21)
 sum_demo
+
+# sezioni con pop30p uguale zero
+sez_pop_21 |> 
+  st_drop_geometry() |> 
+  mutate(p30p=rowSums(across(P20:P29), na.rm = TRUE)) |> 
+  filter(p30p==0) |> 
+  select(P1:P29, p30p) |> 
+  summarise(
+    total_rows = n(),
+    across(everything(), \(x) sum(x, na.rm = TRUE))) |> 
+  write_csv('./output/tbl_sez_classi_eta_pop30p_zero.csv')
+
+# map pop30p
 
 p_map_pop <- plot_sezione_map(
   sez_analyzed = demo_sez_21,
@@ -68,6 +84,8 @@ ggsave_report("./output/map_no2_ts_rv.png", plot = no2_map_ts_rv)
 sez_no2    <- read_rds('./data_input/dat_no2_2019_2025.rds')
 shp_comuni <- read_sf('./data_input/shp_comuni_2021.shp')
 
+# cfr function in 03_trend_analysis.R
+# with BH correction
 df_mk <- compute_municipal_mk_sen_long(sez_no2)
 p_mk  <- plot_mk_sen_map(shp = shp_comuni, df_mk = df_mk, title = NULL)
 p_mk
@@ -191,6 +209,49 @@ ac_sez_no2 <- list_cause |>
 
 write_rds(ac_sez_no2, './output/ac_sez_no2_2019_2025_wide_all_causes.rds')
 
+# delta PWE --------------------------------------------------------------------
+
+# ac_sez_no2$RES |> 
+#   summarise(mean_dealta = mean(delta_PWE),
+#             median_delta = median((delta_PWE)),
+#             min_delta = min(delta_PWE),
+#             max_delta = max(delta_PWE))
+
+ac_sez_no2$RES |> 
+  summarise(
+    across(
+      delta_PWE, 
+      list(
+        mean   = \(x) mean(x, na.rm = TRUE),
+        median = \(x) median(x, na.rm = TRUE),
+        min    = \(x) min(x, na.rm = TRUE),
+        max    = \(x) max(x, na.rm = TRUE),
+        iqr    = \(x) IQR(x, na.rm = TRUE)
+        ),
+      .names = "{.fn}_delta")
+    ) |> 
+  write_csv('./output/tbl_sezioni_delta_controfattuale.csv')
+
+# stratificazione by provincia
+
+ac_sez_no2$RES |> 
+  group_by(provincia) |> 
+  summarise(
+    across(
+      delta_PWE, 
+      list(
+        mean   = \(x) mean(x, na.rm = TRUE),
+        median = \(x) median(x, na.rm = TRUE),
+        min    = \(x) min(x, na.rm = TRUE),
+        max    = \(x) max(x, na.rm = TRUE),
+        iqr    = \(x) IQR(x, na.rm = TRUE)
+      ),
+      .names = "{.fn}_delta"),
+    .groups= "drop"
+  ) |> 
+  write_csv('./output/tbl_sezioni_delta_controfattuale_by_provincia.csv')
+
+
 # ------------------------------------------------------------------------------
 # stat causa RESP, stima puntuale
 
@@ -201,7 +262,8 @@ ac_sez_no2$RES |>
             AC = sum(AC),
             AF = AC/attesi,
             AC_low = sum(AC_low),
-            AC_upp = sum(AC_upp)) |> 
+            AC_upp = sum(AC_upp),
+            .groups = "drop") |> 
   write_csv('./output/tbl_ac_af_provincia_stima_puntuale.csv')
 
 ac_sez_no2$RES |> 
@@ -211,7 +273,6 @@ ac_sez_no2$RES |>
             AC_low = sum(AC_low),
             AC_upp = sum(AC_upp))|> 
   write_csv('./output/tbl_ac_af_regione_stima_puntuale.csv')
-
 
 #-------------------------------------------------------------------------------
 # mapping no2 and ac
@@ -435,7 +496,7 @@ plot_bootstrap_density(
        x = "casi attribuibili",
        caption = NULL
        )
-ggsave_report("./output/ac_resp_bootstrap_density_spat_temp.pn_NO_LABS.png")
+ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs.png")
 
 # simple bootstrap -------------------------------------------------------------
 
