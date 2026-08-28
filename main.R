@@ -28,6 +28,19 @@ demo_sez_21 <- process_census_demographics(sez_pop_21)
 sum_demo    <- summarise_regional_demographics(demo_sez_21)
 sum_demo
 
+# shp comuni, provincia, regione
+
+fpath_shp_com   <- "./data_input/shp_comuni_2021.shp"
+shp_comuni <- read_sf(fpath_shp_com)
+
+shp_prov <- shp_comuni |> 
+  mutate(cod_prov = substr(sprintf("%05.0f", PRO_COM), 1, 2)) |> 
+  group_by(cod_prov) |> 
+  summarise(.groups = "drop")
+
+shp_rv <- shp_prov |> 
+  summarise()
+
 # sezioni con pop30p uguale zero
 sez_pop_21 |> 
   st_drop_geometry() |> 
@@ -46,8 +59,8 @@ p_map_pop <- plot_sezione_map(
   fill_var     = "pop_30p",
   title        = NULL, #"Popolazione 30+ per sezione censuaria ISTAT",
   legend_title = "Abitanti\n(scala log)",
-  use_log      = TRUE
-)
+  use_log      = TRUE)+
+  geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
 
 # note the log scale
 p_map_pop
@@ -209,6 +222,8 @@ ac_sez_no2 <- list_cause |>
 
 write_rds(ac_sez_no2, './output/ac_sez_no2_2019_2025_wide_all_causes.rds')
 
+#ac_sez_no2<- read_rds('./output/ac_sez_no2_2019_2025_wide_all_causes.rds')
+
 # delta PWE --------------------------------------------------------------------
 
 # ac_sez_no2$RES |> 
@@ -279,16 +294,16 @@ ac_sez_no2$RES |>
 
 # reading geometry sezione, comune, provincia, regione
 
-fpath_shp_com   <- "./data_input/shp_comuni_2021.shp"
-shp_comuni <- read_sf(fpath_shp_com)
-
-shp_prov <- shp_comuni |> 
-  mutate(cod_prov = substr(sprintf("%05.0f", PRO_COM), 1, 2)) |> 
-  group_by(cod_prov) |> 
-  summarise(.groups = "drop")
-
-shp_rv <- shp_prov |> 
-  summarise()
+# fpath_shp_com   <- "./data_input/shp_comuni_2021.shp"
+# shp_comuni <- read_sf(fpath_shp_com)
+# 
+# shp_prov <- shp_comuni |> 
+#   mutate(cod_prov = substr(sprintf("%05.0f", PRO_COM), 1, 2)) |> 
+#   group_by(cod_prov) |> 
+#   summarise(.groups = "drop")
+# 
+# shp_rv <- shp_prov |> 
+#   summarise()
 
 fpath_geom_sez    <- "./data_input/shp_SEZ21_ID_geom.gpkg"
 geom_sez <- read_sf(fpath_geom_sez)
@@ -331,7 +346,7 @@ ggplot(ac_sez_no2_resp_sf) +
 
 ggsave_report("./output/map_sezioni_attesi.png")
 
-# map attesi
+# map AC
 ggplot(ac_sez_no2_resp_sf) +
   geom_sf(aes(fill = AC), color = NA) +
   scale_fill_viridis_c(
@@ -377,7 +392,8 @@ ggplot(ac_sez_no2_resp_sf) +
     option = "magma",
     name = "AF", 
     na.value = "transparent") +
-  theme_void()
+  theme_void()+
+  geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
 
 ggsave_report("./output/map_AF_sezioni_no2_2025.png")
 
@@ -391,7 +407,6 @@ comune_sf %>%
   st_drop_geometry() %>%
   arrange(desc(AC_tot)) %>%
   head(10)
-
 
 # fare grafico su questo oggetto
 comune_ac_sf <- shp_comuni |>
@@ -455,7 +470,8 @@ boot_spat <- map(
 )
 
 write_rds(boot_spat, './output/list_boostrap_spatio_temp_all_causes.rds')
-boot_spat <- read_rds('./output/list_boostrap_spatio_temp_all_causes.rds')
+
+#boot_spat <- read_rds('./output/list_boostrap_spatio_temp_all_causes.rds')
 
 # Estrazione dei percentili 95% CI (2.5%, 50%, 97.5%) per ogni causa
 sintesi_spatiotemporal <- boot_spat |>
@@ -495,9 +511,22 @@ plot_bootstrap_density(
   labs(title=NULL, 
        subtitle = NULL,
        x = "casi attribuibili",
-       caption = NULL
-       )
+       caption = NULL)
+
 ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs.png")
+
+plot_bootstrap_density(
+  df_boot     = boot_spat$RES,
+  var_name    = "casi_attribuibili",
+  causa_label = NULL,
+  output_path = NULL)+
+  labs(title=NULL, 
+       subtitle = NULL,
+       x = "casi attribuibili",
+       caption = NULL)+
+  geom_vline(xintercept = 109, colour = "grey50", linetype = "dotted")
+
+ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs_e_stima_puntuale.png")
 
 # simple bootstrap -------------------------------------------------------------
 
