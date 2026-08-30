@@ -1,16 +1,16 @@
 # main.R - Pipeline di Esecuzione Principale
 
-# 1. Caricamento Librerie ------------------------------------------------------
+# 1. Caricamento Librerie
 
 suppressPackageStartupMessages({
-  library(tidyverse)
-  library(sf)
-  library(terra)
-  library(tidyterra)
-  library(ggspatial)
-  library(trend)
-  library(scales)
-  library(patchwork)
+library(tidyverse)
+library(sf)
+library(terra)
+library(tidyterra)
+library(ggspatial)
+library(trend)
+library(scales)
+library(patchwork)
 })
 
 # 2. Source di tutti i moduli della cartella /R --------------------------------
@@ -18,49 +18,28 @@ suppressPackageStartupMessages({
 r_files <- list.files("R", pattern = "\\.R$", full.names = TRUE)
 sapply(r_files, source)
 
-# 3. Caricamento Dataset -------------------------------------------------------
+# 3. Pipeline Demografica ------------------------------------------------------
 
 # metadata
 meta <- read_rds('./data_input/meta_21.rds')
 
-# sezioni e popolazione censuaria 2021
 sez_pop_21 <- read_sf("./data_input/shp_sez_pop_21.gpkg")
+demo_sez_21 <- process_census_demographics(sez_pop_21)
+sum_demo    <- summarise_regional_demographics(demo_sez_21)
+sum_demo
 
-# shp comuni e percorsi
-fpath_shp_com <- "./data_input/shp_comuni_2021.shp"
-shp_comuni    <- read_sf(fpath_shp_com)
+# shp comuni, provincia, regione
 
-# shp provincia
+fpath_shp_com   <- "./data_input/shp_comuni_2021.shp"
+shp_comuni <- read_sf(fpath_shp_com)
+
 shp_prov <- shp_comuni |> 
   mutate(cod_prov = substr(sprintf("%05.0f", PRO_COM), 1, 2)) |> 
   group_by(cod_prov) |> 
   summarise(.groups = "drop")
 
-#shp regione
 shp_rv <- shp_prov |> 
   summarise()
-
-# geometrie sezioni censuarie
-fpath_geom_sez <- "./data_input/shp_SEZ21_ID_geom.gpkg"
-geom_sez       <- read_sf(fpath_geom_sez)
-
-# raster CAMx
-r_camx <- read_camx_tifs("./data_input/camx_tif")
-
-# dati NO2 2019-2025
-sez_no2 <- read_rds('./data_input/dat_no2_2019_2025.rds')
-
-# tassi di incidenza e RR 2024
-tassi_2024 <- read_csv('./data_input/inq_pop_tasso_rr.csv') |> 
-  filter(inquinante == "no2", anno_tasso == 2024) |> 
-  rename(cod_comune = cod_istat) |> 
-  mutate(cod_comune = as.character(cod_comune))
-
-# 4. Pipeline Demografica ------------------------------------------------------
-
-demo_sez_21 <- process_census_demographics(sez_pop_21)
-sum_demo    <- summarise_regional_demographics(demo_sez_21)
-sum_demo
 
 # sezioni con pop30p uguale zero
 sez_pop_21 |> 
@@ -87,10 +66,10 @@ p_map_pop <- plot_sezione_map(
 p_map_pop
 ggsave_report("./output/map_sez_pop30p.png", plot = p_map_pop)
 
-# 5. Pipeline Raster CAMx ------------------------------------------------------
+# 4. Pipeline Raster CAMx ------------------------------------------------------
 
+r_camx      <- read_camx_tifs("./data_input/camx_tif")
 r_camx_crop <- crop_camx_stack(r_camx, vector_filename = "shp_comuni_2021.shp")
-
 plot_and_save_layers(r_camx_crop, 
                      output_dir = "./output/raster_maps", 
                      custom_titles = paste0(2019:2025))
@@ -110,10 +89,13 @@ no2_map_ts_rv <- patchwork::wrap_plots(camx_plots, ncol=3, guides = "collect")+
   guide_area() +
   plot_layout(ncol = 3, guides = "collect")
 
-ggsave("./output/map_no2_ts_rv.png")
-#ggsave_report("./output/map_no2_ts_rv.png", width = 6, height = 5, plot = no2_map_ts_rv)
+ggsave_report("./output/map_no2_ts_rv.png", plot = no2_map_ts_rv)
 
-# 6. Pipeline Trend Analysis (Mann-Kendall) ------------------------------------
+
+# 5. Pipeline Trend Analysis (Mann-Kendall) ------------------------------------
+
+sez_no2    <- read_rds('./data_input/dat_no2_2019_2025.rds')
+shp_comuni <- read_sf('./data_input/shp_comuni_2021.shp')
 
 # cfr function in 03_trend_analysis.R
 # with BH correction
@@ -150,8 +132,7 @@ sez_no2 |>
     legend.key.width = unit(1.5, "cm")
   )
 
-ggsave("./output/boxplot_no2_provincia.png")
-#ggsave_report("./output/boxplot_no2_provincia.png")
+ggsave_report("./output/boxplot_no2_provincia.png")
 
 # cumulative plot
 
@@ -159,7 +140,7 @@ ggsave("./output/boxplot_no2_provincia.png")
 scenario_no2 <- c(
   "camx_2019_no2" = "2019",
   "camx_2025_no2"  = "2025"
-)
+  )
 
 # prepare dataset by region
 df_plot_no2 <- sez_no2 |> 
@@ -182,7 +163,7 @@ ggplot(df_plot_no2, aes(x = pol_value, y = pct_cum_pop, colour = key)) +
     colour = "anno" )+
   geom_vline(xintercept = 10, colour = "grey50", linetype = "dashed")+
   annotate("text", x=8.5, y = 0.93, label = "OMS", colour="grey50", size=4)
-
+  
 ggsave("./output/no2_exp_pop_2019_2025.png", bg="white")
 
 # prepare dataset by provincia
@@ -219,7 +200,12 @@ ggsave("./output/no2_exp_pop_2019_2025_by_province.png", bg="white")
 
 # # =========================================================
 
-# 7. Pipeline HIA & Join Cause -------------------------------------------------
+# 6. Pipeline HIA & Join Cause -------------------------------------------------
+
+tassi_2024 <- read_csv('./data_input/inq_pop_tasso_rr.csv') |> 
+  filter(inquinante == "no2", anno_tasso == 2024) |> 
+  rename(cod_comune = cod_istat) |> 
+  mutate(cod_comune = as.character(cod_comune))
 
 pwe_sez_wide <- sez_no2 |> 
   select(COD_ISTAT, SEZ21, SEZ21_ID, year, pol_name, pol_value, P1, p30p) |> 
@@ -256,9 +242,9 @@ ac_sez_no2$RES |>
         min    = \(x) min(x, na.rm = TRUE),
         max    = \(x) max(x, na.rm = TRUE),
         iqr    = \(x) IQR(x, na.rm = TRUE)
-      ),
+        ),
       .names = "{.fn}_delta")
-  ) |> 
+    ) |> 
   write_csv('./output/tbl_sezioni_delta_controfattuale.csv')
 
 # stratificazione by provincia
@@ -279,6 +265,7 @@ ac_sez_no2$RES |>
     .groups= "drop"
   ) |> 
   write_csv('./output/tbl_sezioni_delta_controfattuale_by_provincia.csv')
+
 
 # ------------------------------------------------------------------------------
 # stat causa RESP, stima puntuale
@@ -318,6 +305,9 @@ ac_sez_no2$RES |>
 # shp_rv <- shp_prov |> 
 #   summarise()
 
+fpath_geom_sez    <- "./data_input/shp_SEZ21_ID_geom.gpkg"
+geom_sez <- read_sf(fpath_geom_sez)
+
 # join geom to dataframe and cause field to be filtered out
 # pay attention to this!
 ac_sez_no2_sf <- ac_sez_no2 |> 
@@ -336,24 +326,10 @@ plot_sezione_map(
   palette      = "viridis",                   
   title        = NULL, #"Concentrazione media annuale NO2 per sezione (2025)",
   legend_title = pollutant_label("NO2")
-)+
+  )+
   geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
 
 ggsave_report("./output/map_sezioni_no2_2025.png")
-
-
-# delta target oms
-
-ggplot(ac_sez_no2_resp_sf) +
-  geom_sf(aes(fill = delta_PWE), color = NA) +
-  scale_fill_viridis_c(
-    option = "viridis",
-    name = pollutant_label("NO2"), 
-    na.value = "transparent") +
-  theme_void()+
-  geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
-
-ggsave_report("./output/map_sezioni_delta_no2_2025_target_oms.png")
 
 # map attesi
 
@@ -470,7 +446,7 @@ ggplot(data = geom_sez_simp) +
 
 ggsave_report("./output/map_sezioni_censuarie_rv.png")
 
-# 8. Pipeline Bootstrap & Incertezza -------------------------------------------
+# 7. Pipeline Bootstrap & Incertezza -------------------------------------------
 
 # check the function for the default
 # questo run considera tutti gli anni disponibili
@@ -581,8 +557,8 @@ ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs_e_stima_punt
 # questa solo considerando anno 2025  cause respiratorie
 
 boot_simp_2025 <- map(ac_sez_no2, ~ run_bootstrap_ac_simple(.x,
-                                                            col_exp = "no2_2025",
-                                                            B = 1000))
+                                          col_exp = "no2_2025",
+                                          B = 1000))
 
 write_rds(boot_simp_2025, './output/list_boostrap_simple_2025_all_causes.rds')
 
@@ -591,7 +567,7 @@ comp_metrics_2025 <- compare_bootstrap_metrics(
   Semplice2025 = boot_simp_2025$RES,
   SpazioTemporale = boot_spat$RES,
   var_name = "casi_attribuibili"
-)
+  )
 
 comp_metrics_2025 |> 
   write_csv('./output/tbl_bootstrap_compare_metrics_simple_vs_bootstrap.csv')
