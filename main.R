@@ -586,6 +586,8 @@ boot_simp_2025 <- map(ac_sez_no2, ~ run_bootstrap_ac_simple(.x,
 
 write_rds(boot_simp_2025, './output/list_boostrap_simple_2025_all_causes.rds')
 
+#boot_simp_2025 <- read_rds('./output/list_boostrap_simple_2025_all_causes.rds')
+
 # confronto più significativo
 comp_metrics_2025 <- compare_bootstrap_metrics(
   Semplice2025 = boot_simp_2025$RES,
@@ -600,6 +602,7 @@ plot_bootstrap_comparison(
   Semplice = boot_simp_2025$RES,
   SpazioTemporale = boot_spat$RES,
   var_name = "casi_attribuibili")+
-  labs(title = NULL)
+  labs(title = NULL,
+       x = "casi attribuibili")
 
 ggsave_report("./output/bootstrap_comparison_res_simple_spattemp.png")

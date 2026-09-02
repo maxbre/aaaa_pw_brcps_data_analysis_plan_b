@@ -77,7 +77,7 @@ compute_municipal_mk_sen_long <- function(df,
     )
 }
 
-# function to prepare dataset for culative plot
+# function to prepare dataset for cumulative plot
 prep_exposure_data <- function(data, keys, ...) {
   # Capture grouping variables (e.g., PROVINCIA, COMUNE)
   group_vars <- enquos(...)
