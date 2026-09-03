@@ -110,7 +110,7 @@ no2_map_ts_rv <- patchwork::wrap_plots(camx_plots, ncol=3, guides = "collect")+
   guide_area() +
   plot_layout(ncol = 3, guides = "collect")
 
-ggsave("./output/map_no2_ts_rv.png")
+ggsave("./output/map_no2_ts_rv.png", plot=no2_map_ts_rv)
 #ggsave_report("./output/map_no2_ts_rv.png", width = 6, height = 5, plot = no2_map_ts_rv)
 
 # 6. Pipeline Trend Analysis (Mann-Kendall) ------------------------------------
@@ -479,37 +479,68 @@ ggsave_report("./output/map_sezioni_censuarie_rv.png")
 anni_no2 <- paste0("no2_", 2019:2025)
 
 # Esecuzione del bootstrap spazio-temporale su tutte le cause (CVD, NAT, RES, TUM)
-boot_spat <- map(
+# boot_spat <- map(
+#   ac_sez_no2,
+#   \(x) run_bootstrap_ac_spatiotemporal_opt(
+#     data        = x,
+#     col_years   = anni_no2,
+#     col_pop30p  = "p30p",
+#     col_tasso   = "tasso",
+#     col_end     = "target_oms_no2",
+#     cluster_var = "cod_comune",
+#     B           = 1000,
+#     seed        = 1234
+#   )
+# )
+
+# new version
+boot_spat_ac <- map(
   ac_sez_no2,
-  \(x) run_bootstrap_ac_spatiotemporal_opt(
+  \(x) run_bootstrap_ac_ind(
     data        = x,
     col_years   = anni_no2,
     col_pop30p  = "p30p",
     col_tasso   = "tasso",
     col_end     = "target_oms_no2",
-    cluster_var = "cod_comune",
     B           = 1000,
     seed        = 1234
   )
 )
 
-write_rds(boot_spat, './output/list_boostrap_spatio_temp_all_causes.rds')
+write_rds(boot_spat_ac, './output/list_boostrap_spatio_temp_all_causes.rds')
 
 #boot_spat <- read_rds('./output/list_boostrap_spatio_temp_all_causes.rds')
 
 # Estrazione dei percentili 95% CI (2.5%, 50%, 97.5%) per ogni causa
-sintesi_spatiotemporal <- boot_spat |>
+# sintesi_spatiotemporal <- boot_spat |>
+#   map(\(df_boot) {
+#     df_boot |>
+#       summarise(
+#         
+#         AC_median = median(casi_attribuibili),
+#         AC_p2.5   = quantile(casi_attribuibili, 0.025),
+#         AC_p97.5  = quantile(casi_attribuibili, 0.975),
+#         
+#         PAF_median = median(paf),
+#         PAF_p2.5   = quantile(paf, 0.025),
+#         PAF_p97.5  = quantile(paf, 0.975)
+#       )
+#   }) |>
+#   list_rbind(names_to = "causa")
+
+
+sintesi_spatiotemporal <- boot_spat_ac |>
   map(\(df_boot) {
     df_boot |>
       summarise(
         
-        AC_median = median(casi_attribuibili),
-        AC_p2.5   = quantile(casi_attribuibili, 0.025),
-        AC_p97.5  = quantile(casi_attribuibili, 0.975),
+        AC_median = median(AC_boot),
+        AC_p2.5   = quantile(AC_boot, 0.025),
+        AC_p97.5  = quantile(AC_boot, 0.975),
         
-        PAF_median = median(paf),
-        PAF_p2.5   = quantile(paf, 0.025),
-        PAF_p97.5  = quantile(paf, 0.975)
+        PAF_median = median(PAF_boot),
+        PAF_p2.5   = quantile(PAF_boot, 0.025),
+        PAF_p97.5  = quantile(PAF_boot, 0.975)
       )
   }) |>
   list_rbind(names_to = "causa")
@@ -521,15 +552,15 @@ sintesi_spatiotemporal |>
 
 # plot bootstrap density
 plot_bootstrap_density(
-  df_boot     = boot_spat$RES,
-  var_name    = "casi_attribuibili",
+  df_boot     = boot_spat_ac$RES,
+  var_name    = "AC_boot",
   causa_label = "Mortalità per cause respiratorie",
   output_path = "./output/ac_resp_bootstrap_density_spat_temp.png"
 )
 
 plot_bootstrap_density(
-  df_boot     = boot_spat$RES,
-  var_name    = "casi_attribuibili",
+  df_boot     = boot_spat_ac$RES,
+  var_name    = "AC_boot",
   causa_label = NULL,
   output_path = NULL)+
   labs(title=NULL, 
@@ -540,8 +571,8 @@ plot_bootstrap_density(
 ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs.png")
 
 plot_bootstrap_density(
-  df_boot     = boot_spat$RES,
-  var_name    = "casi_attribuibili",
+  df_boot     = boot_spat_ac$RES,
+  var_name    = "AC_boot",
   causa_label = NULL,
   output_path = NULL)+
   labs(title=NULL, 
@@ -552,6 +583,14 @@ plot_bootstrap_density(
 
 ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs_e_stima_puntuale.png")
 
+
+summary_table <- summarize_boot_metrics(boot_spat_ac$RES)
+
+summary_table |> 
+  write_csv('./output/tbl_bootstrap_summary.csv')
+
+#-------------------------------------------------------------------------------
+# stop from here
 # simple bootstrap -------------------------------------------------------------
 
 # # qui nota ancora anni di esposizione dal 2019 al 2025, campionati casualmente
@@ -580,29 +619,162 @@ ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs_e_stima_punt
 # simple bootstrap
 # questa solo considerando anno 2025  cause respiratorie
 
-boot_simp_2025 <- map(ac_sez_no2, ~ run_bootstrap_ac_simple(.x,
-                                                            col_exp = "no2_2025",
-                                                            B = 1000))
+# boot_simp_2025 <- map(ac_sez_no2, ~ run_bootstrap_ac_simple(.x,
+#                                                             col_exp = "no2_2025",
+#                                                             B = 1000))
+# 
+# write_rds(boot_simp_2025, './output/list_boostrap_simple_2025_all_causes.rds')
+# 
+# #boot_simp_2025 <- read_rds('./output/list_boostrap_simple_2025_all_causes.rds')
+# 
+# # confronto più significativo
+# comp_metrics_2025 <- compare_bootstrap_metrics(
+#   Semplice2025 = boot_simp_2025$RES,
+#   SpazioTemporale = boot_spat$RES,
+#   var_name = "casi_attribuibili"
+# )
+# 
+# comp_metrics_2025 |> 
+#   write_csv('./output/tbl_bootstrap_compare_metrics_simple_vs_bootstrap.csv')
+# 
+# plot_bootstrap_comparison(
+#   Semplice = boot_simp_2025$RES,
+#   SpazioTemporale = boot_spat$RES,
+#   var_name = "casi_attribuibili")+
+#   labs(title = NULL,
+#        x = "casi attribuibili")
+# 
+# ggsave_report("./output/bootstrap_comparison_res_simple_spattemp.png")
 
-write_rds(boot_simp_2025, './output/list_boostrap_simple_2025_all_causes.rds')
 
-#boot_simp_2025 <- read_rds('./output/list_boostrap_simple_2025_all_causes.rds')
+# bootstrap ac indipendent sections
 
-# confronto più significativo
-comp_metrics_2025 <- compare_bootstrap_metrics(
-  Semplice2025 = boot_simp_2025$RES,
-  SpazioTemporale = boot_spat$RES,
-  var_name = "casi_attribuibili"
-)
+# solo anno 2025
 
-comp_metrics_2025 |> 
-  write_csv('./output/tbl_bootstrap_compare_metrics_simple_vs_bootstrap.csv')
-
-plot_bootstrap_comparison(
-  Semplice = boot_simp_2025$RES,
-  SpazioTemporale = boot_spat$RES,
-  var_name = "casi_attribuibili")+
-  labs(title = NULL,
-       x = "casi attribuibili")
-
-ggsave_report("./output/bootstrap_comparison_res_simple_spattemp.png")
+# boot_spat_ac_indip_2025 <- map(
+#   ac_sez_no2,
+#   \(x) run_bootstrap_ac_indip(
+#     data        = x,
+#     col_years   = "no2_2025",
+#     col_pop30p  = "p30p",
+#     col_tasso   = "tasso",
+#     col_end     = "target_oms_no2",
+#     B           = 1000,
+#     seed        = 1234)
+#   )
+# 
+# 
+# 
+# plot_bootstrap_density(
+#   df_boot     = boot_spat_ac_indip_2025$RES,
+#   var_name    = "AC_boot",
+#   causa_label = NULL,
+#   output_path = NULL)+
+#   labs(title=NULL, 
+#        subtitle = NULL,
+#        x = "casi attribuibili",
+#        caption = NULL)+
+#   geom_vline(xintercept = 109, colour = "grey50", linetype = "dotted")
+# 
+# 
+# plot_bootstrap_comparison(
+#    Semplice2025 = boot_spat_ac_indip_2025$RES,
+#    SpazioTemporale = boot_spat_ac$RES,
+#    var_name = "AC_boot")+
+#    labs(title = NULL,
+#         x = "casi attribuibili")
+#    
+# # spazio temporale anno 2025
+# 
+# boot_spat_ac_2025 <- map(
+#   ac_sez_no2,
+#   \(x) run_bootstrap_ac(
+#     data        = x,
+#     col_years   = "no2_2025",
+#     col_pop30p  = "p30p",
+#     col_tasso   = "tasso",
+#     col_end     = "target_oms_no2",
+#     cluster_var = "cod_comune",
+#     B           = 1000,
+#     seed        = 1234
+#   )
+# )
+# 
+# plot_bootstrap_comparison(
+#   Semplice2025 = boot_spat_ac_indip_2025$RES,
+#   Spatial2025 = boot_spat_ac_2025$RES,
+#   var_name = "AC_boot")+
+#   labs(title = NULL,
+#        x = "casi attribuibili")
+# 
+# 
+# plot_bootstrap_comparison(
+#   SpatialTemp = boot_spat_ac$RES,
+#   Spatial2025 = boot_spat_ac_2025$RES,
+#   var_name = "AC_boot")+
+#   labs(title = NULL,
+#        x = "casi attribuibili")
+# 
+# ### isolare effetto clustering -------------------------------------------------
+# 
+# 
+# library(dplyr)
+# library(ggplot2)
+# library(tidyr)
+# 
+# # 1. Esecuzione delle due simulazioni bootstrap
+# set.seed(1234)
+# 
+# res_cluster <- run_bootstrap_ac(
+#   data = ac_sez_no2$RES, 
+#   B = 1000, 
+#   seed = 1234
+# )  |> mutate(Metodo = "Spazio-Temporale (Cluster)")
+# 
+# res_indip <- run_bootstrap_ac_indip(
+#   data = ac_sez_no2$RES, 
+#   B = 1000, 
+#   seed = 1234
+# )  |>  mutate(Metodo = "Semplice (Indipendente)")
+# 
+# # 2. Unione dei risultati
+# df_compare <- bind_rows(res_cluster, res_indip)
+# 
+# # 3. Calcolo delle metriche sintetiche e dell'effetto di inflazione
+# summary_metrics <- df_compare %>%
+#   group_by(Metodo) %>%
+#   summarise(
+#     Media         = mean(AC_boot),
+#     Mediana       = median(AC_boot),
+#     SD            = sd(AC_boot),
+#     Q2.5          = quantile(AC_boot, 0.025),
+#     Q97.5         = quantile(AC_boot, 0.975),
+#     Ampiezza_IC95 = Q97.5 - Q2.5,
+#     .groups       = "drop"
+#   )  |> 
+#   mutate(
+#     # Isolamento dell'impatto del clustering (Ratio rispetto al metodo indipendente)
+#     Ratio_SD   = SD / SD[Metodo == "Semplice (Indipendente)"],
+#     Ratio_IC95 = Ampiezza_IC95 / Ampiezza_IC95[Metodo == "Semplice (Indipendente)"]
+#   )
+# 
+# summary_metrics
+# 
+# 
+# ggplot(df_compare, aes(x = AC_boot, fill = Metodo, color = Metodo)) +
+#   geom_density(alpha = 0.35, linewidth = 0.8) +
+#   scale_fill_manual(values = c("steelblue", "firebrick")) +
+#   scale_color_manual(values = c("steelblue", "firebrick")) +
+#   labs(
+#     title = "Impatto del Clustering Spaziale sulla Distribuzione dei Casi Attribuibili",
+#     subtitle = "Confronto tra ricampionamento indipendente delle sezioni e ricampionamento a cluster comunali",
+#     x = "Casi Attribuibili (AC)",
+#     y = "Densità di Probabilità",
+#     fill = "Schema Bootstrap",
+#     color = "Schema Bootstrap"
+#   ) +
+#   theme_minimal(base_size = 12) +
+#   theme(
+#     legend.position = "bottom",
+#     plot.title = element_text(face = "bold")
+#   )
