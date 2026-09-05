@@ -347,7 +347,7 @@ ggsave_report("./output/map_sezioni_no2_2025.png")
 ggplot(ac_sez_no2_resp_sf) +
   geom_sf(aes(fill = delta_PWE), color = NA) +
   scale_fill_viridis_c(
-    option = "viridis",
+    option = "magma",
     name = pollutant_label("NO2"), 
     na.value = "transparent") +
   theme_void()+
