@@ -119,7 +119,9 @@ ggsave("./output/map_no2_ts_rv.png", plot=no2_map_ts_rv)
 # with BH correction
 df_mk <- compute_municipal_mk_sen_long(sez_no2)
 p_mk  <- plot_mk_sen_map(shp = shp_comuni, df_mk = df_mk, title = NULL)
-p_mk
+p_mk+
+  geom_sf(data=shp_rv,  fill=NA, colour ="grey50")
+
 ggsave_report("./output/map_mk_sen_no2.png", plot = p_mk)
 
 # boxplot trend
