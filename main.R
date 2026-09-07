@@ -415,7 +415,7 @@ ac_sez_no2_resp_sf |>
 ggplot(ac_sez_no2_resp_sf) +
   geom_sf(aes(fill = AF), color = NA) +
   scale_fill_viridis_c(
-    option = "magma",
+    option = "plasma",
     name = "AF", 
     na.value = "transparent") +
   theme_void()+
