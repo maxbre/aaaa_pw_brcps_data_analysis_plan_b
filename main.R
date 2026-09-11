@@ -478,7 +478,7 @@ ggsave_report("./output/map_sezioni_censuarie_rv.png")
 # questo run considera tutti gli anni disponibili
 
 # Definizione delle colonne degli anni di esposizione dal 2019 al 2025
-anni_no2 <- paste0("no2_", 2019:2025)
+#anni_no2 <- paste0("no2_", 2019:2025)
 
 # Esecuzione del bootstrap spazio-temporale su tutte le cause (CVD, NAT, RES, TUM)
 # boot_spat <- map(
@@ -496,20 +496,20 @@ anni_no2 <- paste0("no2_", 2019:2025)
 # )
 
 # new version
-boot_spat_ac <- map(
-  ac_sez_no2,
-  \(x) run_bootstrap_ac_ind(
-    data        = x,
-    col_years   = anni_no2,
-    col_pop30p  = "p30p",
-    col_tasso   = "tasso",
-    col_end     = "target_oms_no2",
-    B           = 1000,
-    seed        = 1234
-  )
-)
-
-write_rds(boot_spat_ac, './output/list_boostrap_spatio_temp_all_causes.rds')
+# boot_spat_ac <- map(
+#   ac_sez_no2,
+#   \(x) run_bootstrap_ac_ind(
+#     data        = x,
+#     col_years   = anni_no2,
+#     col_pop30p  = "p30p",
+#     col_tasso   = "tasso",
+#     col_end     = "target_oms_no2",
+#     B           = 1000,
+#     seed        = 1234
+#   )
+# )
+# 
+# write_rds(boot_spat_ac, './output/list_boostrap_spatio_temp_all_causes.rds')
 
 #boot_spat <- read_rds('./output/list_boostrap_spatio_temp_all_causes.rds')
 
@@ -531,65 +531,65 @@ write_rds(boot_spat_ac, './output/list_boostrap_spatio_temp_all_causes.rds')
 #   list_rbind(names_to = "causa")
 
 
-sintesi_spatiotemporal <- boot_spat_ac |>
-  map(\(df_boot) {
-    df_boot |>
-      summarise(
-        
-        AC_median = median(AC_boot),
-        AC_p2.5   = quantile(AC_boot, 0.025),
-        AC_p97.5  = quantile(AC_boot, 0.975),
-        
-        PAF_median = median(PAF_boot),
-        PAF_p2.5   = quantile(PAF_boot, 0.025),
-        PAF_p97.5  = quantile(PAF_boot, 0.975)
-      )
-  }) |>
-  list_rbind(names_to = "causa")
+# sintesi_spatiotemporal <- boot_spat_ac |>
+#   map(\(df_boot) {
+#     df_boot |>
+#       summarise(
+#         
+#         AC_median = median(AC_boot),
+#         AC_p2.5   = quantile(AC_boot, 0.025),
+#         AC_p97.5  = quantile(AC_boot, 0.975),
+#         
+#         PAF_median = median(PAF_boot),
+#         PAF_p2.5   = quantile(PAF_boot, 0.025),
+#         PAF_p97.5  = quantile(PAF_boot, 0.975)
+#       )
+#   }) |>
+#   list_rbind(names_to = "causa")
 
 # check resuts
-sintesi_spatiotemporal |> 
-  filter(causa =="RES") |> 
-  write_csv('./output/tab_stat_bootstrap_spatio_temp_cause_resp.csv')
+# sintesi_spatiotemporal |> 
+#   filter(causa =="RES") |> 
+#   write_csv('./output/tab_stat_bootstrap_spatio_temp_cause_resp.csv')
+# 
+# # plot bootstrap density
+# plot_bootstrap_density(
+#   df_boot     = boot_spat_ac$RES,
+#   var_name    = "AC_boot",
+#   causa_label = "Mortalità per cause respiratorie",
+#   output_path = "./output/ac_resp_bootstrap_density_spat_temp.png"
+# )
 
-# plot bootstrap density
-plot_bootstrap_density(
-  df_boot     = boot_spat_ac$RES,
-  var_name    = "AC_boot",
-  causa_label = "Mortalità per cause respiratorie",
-  output_path = "./output/ac_resp_bootstrap_density_spat_temp.png"
-)
-
-plot_bootstrap_density(
-  df_boot     = boot_spat_ac$RES,
-  var_name    = "AC_boot",
-  causa_label = NULL,
-  output_path = NULL)+
-  labs(title=NULL, 
-       subtitle = NULL,
-       x = "casi attribuibili",
-       caption = NULL)
-
-ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs.png")
-
-plot_bootstrap_density(
-  df_boot     = boot_spat_ac$RES,
-  var_name    = "AC_boot",
-  causa_label = NULL,
-  output_path = NULL)+
-  labs(title=NULL, 
-       subtitle = NULL,
-       x = "casi attribuibili",
-       caption = NULL)+
-  geom_vline(xintercept = 109, colour = "grey50", linetype = "dotted")
-
-ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs_e_stima_puntuale.png")
-
-
-summary_table <- summarize_boot_metrics(boot_spat_ac$RES)
-
-summary_table |> 
-  write_csv('./output/tbl_bootstrap_summary.csv')
+# plot_bootstrap_density(
+#   df_boot     = boot_spat_ac$RES,
+#   var_name    = "AC_boot",
+#   causa_label = NULL,
+#   output_path = NULL)+
+#   labs(title=NULL, 
+#        subtitle = NULL,
+#        x = "casi attribuibili",
+#        caption = NULL)
+# 
+# ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs.png")
+# 
+# plot_bootstrap_density(
+#   df_boot     = boot_spat_ac$RES,
+#   var_name    = "AC_boot",
+#   causa_label = NULL,
+#   output_path = NULL)+
+#   labs(title=NULL, 
+#        subtitle = NULL,
+#        x = "casi attribuibili",
+#        caption = NULL)+
+#   geom_vline(xintercept = 109, colour = "grey50", linetype = "dotted")
+# 
+# ggsave_report("./output/ac_resp_bootstrap_density_spat_temp_no_labs_e_stima_puntuale.png")
+# 
+# 
+# summary_table <- summarize_boot_metrics(boot_spat_ac$RES)
+# 
+# summary_table |> 
+#   write_csv('./output/tbl_bootstrap_summary.csv')
 
 #-------------------------------------------------------------------------------
 # stop from here
@@ -780,3 +780,81 @@ summary_table |>
 #     legend.position = "bottom",
 #     plot.title = element_text(face = "bold")
 #   )
+
+# THIS IS THE FINAL VERSION
+# NEW SIMULATION MONTE CARLO ################################################################
+
+sim_2025 <- run_simulation_ac_2025(
+  data = ac_sez_no2$RES,
+  B = 10000,
+  seed = 1234
+)
+
+sim_historical <- run_simulation_ac_historical(
+  data = ac_sez_no2$RES,
+  B = 10000,
+  seed = 1234
+)
+
+summary_2025 <- summarize_simulation_metrics(sim_2025)
+summary_2025
+summary_historical <- summarize_simulation_metrics(sim_historical)
+summary_historical
+
+#Per controllare la distribuzione degli anni estratti:
+table(sim_historical$exposure_year)
+
+
+plot_2025 <- plot_simulation_density(
+  sim_res = sim_2025,
+  var_name = "AC_sim",
+  causa_label = "Mortalita per cause respiratorie"
+)
+
+plot_2025
+
+ggsave(filename ="./output/ac_sim_2025.png", plot = plot_2025, dpi = 300)
+
+plot_historical <- plot_simulation_density(
+  sim_res = sim_historical,
+  var_name = "AC_sim",
+  causa_label = "Mortalita per cause respiratorie"
+)
+
+plot_historical
+
+ggsave(filename ="./output/ac_sim_hist.png", plot = plot_historical, dpi = 300)
+
+sim_historical |>
+  dplyr::group_by(exposure_year) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    media_AC = mean(AC_sim),
+    mediana_AC = median(AC_sim),
+    q025 = quantile(AC_sim, 0.025),
+    q975 = quantile(AC_sim, 0.975),
+    .groups = "drop"
+  ) |> 
+  write_csv('./output/tab_ac_sim_hist.csv')
+
+
+ac_sim_hist_cfr <- ggplot(
+  sim_historical,
+  aes(
+    x = AC_sim,
+    colour = factor(exposure_year),
+    fill = factor(exposure_year)
+  )
+) +
+  geom_density(alpha = 0.08, linewidth = 0.8) +
+  labs(
+    x = "Casi attribuibili (AC)",
+    y = "Densità",
+    colour = "Anno",
+    fill = "Anno"
+  ) +
+  theme_minimal()
+
+ac_sim_hist_cfr
+
+ggsave(filename ="./output/ac_sim_hist_cfr_years.png", plot = ac_sim_hist_cfr, dpi = 300)
