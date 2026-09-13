@@ -648,9 +648,7 @@ ggsave_report("./output/map_sezioni_censuarie_rv.png")
 # 
 # ggsave_report("./output/bootstrap_comparison_res_simple_spattemp.png")
 
-
 # bootstrap ac indipendent sections
-
 # solo anno 2025
 
 # boot_spat_ac_indip_2025 <- map(
@@ -858,3 +856,77 @@ ac_sim_hist_cfr <- ggplot(
 ac_sim_hist_cfr
 
 ggsave(filename ="./output/ac_sim_hist_cfr_years.png", plot = ac_sim_hist_cfr, dpi = 300)
+
+
+# variation of the plot
+
+sim_historical_plot <- sim_historical |>
+  mutate(
+    exposure_year = factor(exposure_year)
+  )
+
+ggplot() +
+  # Anni intermedi: solo linee grigie
+  geom_density(
+    data = sim_historical_plot |>
+      filter(!exposure_year %in% c("2019", "2025")),
+    aes(
+      x = AC_sim,
+      group = exposure_year
+    ),
+    colour = "grey70",
+    fill = NA,
+    linewidth = 0.55
+  ) +
+  
+  # Anni evidenziati
+  geom_density(
+    data = sim_historical_plot |>
+      filter(exposure_year %in% c("2019", "2025")),
+    aes(
+      x = AC_sim,
+      colour = exposure_year,
+      fill = exposure_year
+    ),
+    alpha = 0.16,
+    linewidth = 1.2
+  ) +
+  
+  scale_colour_manual(
+    values = c(
+      "2019" = "#D55E00",
+      "2025" = "#0072B2"
+    ),
+    breaks = c("2019", "2025")
+  ) +
+  
+  scale_fill_manual(
+    values = c(
+      "2019" = "#D55E00",
+      "2025" = "#0072B2"
+    ),
+    breaks = c("2019", "2025")
+  ) +
+  
+  labs(
+    x = "Casi attribuibili (AC)",
+    y = "Densità",
+    colour = "Anno evidenziato",
+    fill = "Anno evidenziato",
+    caption = "Gli scenari annuali intermedi sono rappresentati in grigio."
+  ) +
+  
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(filename ="./output/ac_sim_hist_cfr_years_highligt.png", dpi = 300)
+
+
+#group = exposure_year
+# nel primo livello è essenziale
+# permette di mantenere distinte le densità degli anni intermedi
+# anche se sono tutte rappresentate con lo stesso colore grigio. 
+# Senza group, ggplot2 calcolerebbe una sola densità aggregata per il periodo 2020–2024.
