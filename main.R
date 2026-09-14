@@ -788,11 +788,15 @@ sim_2025 <- run_simulation_ac_2025(
   seed = 1234
 )
 
+write_rds(sim_2025, './output/sim_2025.rds')
+
 sim_historical <- run_simulation_ac_historical(
   data = ac_sez_no2$RES,
   B = 10000,
   seed = 1234
 )
+
+write_rds(sim_historical, './output/sim_historical.rds')
 
 summary_2025 <- summarize_simulation_metrics(sim_2025)
 summary_2025
@@ -806,7 +810,7 @@ table(sim_historical$exposure_year)
 plot_2025 <- plot_simulation_density(
   sim_res = sim_2025,
   var_name = "AC_sim",
-  causa_label = "Mortalita per cause respiratorie"
+  causa_label = "Mortalità per cause respiratorie"
 )
 
 plot_2025
@@ -816,7 +820,7 @@ ggsave(filename ="./output/ac_sim_2025.png", plot = plot_2025, dpi = 300)
 plot_historical <- plot_simulation_density(
   sim_res = sim_historical,
   var_name = "AC_sim",
-  causa_label = "Mortalita per cause respiratorie"
+  causa_label = "Mortalità per cause respiratorie"
 )
 
 plot_historical

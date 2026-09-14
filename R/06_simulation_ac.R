@@ -398,7 +398,7 @@ plot_simulation_density <- function(
     sim_res,
     var_name = "AC_sim",
     simulation_type = NULL,
-    causa_label = "Mortalita per cause respiratorie",
+    causa_label = "Mortalità per cause respiratorie",
     stima_centrale = NULL,
     central_label = NULL,
     interval_level = 0.95,
@@ -666,7 +666,7 @@ plot_simulation_density <- function(
       y = "Densita",
       caption = caption_text
     ) +
-    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(
       plot.title = ggplot2::element_text(
         hjust = 0.5,
@@ -726,13 +726,13 @@ plot_simulation_density <- function(
 # plot_2025 <- plot_simulation_density(
 #   sim_res = sim_2025,
 #   var_name = "AC_sim",
-#   causa_label = "Mortalita per cause respiratorie"
+#   causa_label = "Mortalità per cause respiratorie"
 # )
 #
 # plot_historical <- plot_simulation_density(
 #   sim_res = sim_historical,
 #   var_name = "AC_sim",
-#   causa_label = "Mortalita per cause respiratorie"
+#   causa_label = "Mortalità per cause respiratorie"
 # )
 #
 # Per controllare la distribuzione degli anni estratti:
