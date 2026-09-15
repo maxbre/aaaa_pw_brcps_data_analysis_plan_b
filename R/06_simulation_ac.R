@@ -568,7 +568,7 @@ plot_simulation_density <- function(
     caption_text <- paste0(
       "Area ombreggiata: intervallo di simulazione al ",
       interval_pct,
-      "% (metodo dei percentili). Unico scenario annuale e estratto ",
+      "% (metodo percentili). Unico scenario annuale estratto ",
       "per ciascuna replica."
     )
   } else {

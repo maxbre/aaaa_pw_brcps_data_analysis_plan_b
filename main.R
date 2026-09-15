@@ -789,6 +789,8 @@ sim_2025 <- run_simulation_ac_2025(
 )
 
 write_rds(sim_2025, './output/sim_2025.rds')
+#sim_2025 <- read_rds('./output/sim_2025.rds')
+
 
 sim_historical <- run_simulation_ac_historical(
   data = ac_sez_no2$RES,
@@ -797,6 +799,7 @@ sim_historical <- run_simulation_ac_historical(
 )
 
 write_rds(sim_historical, './output/sim_historical.rds')
+#sim_historical <- read_rds('./output/sim_historical.rds')
 
 summary_2025 <- summarize_simulation_metrics(sim_2025)
 summary_2025
